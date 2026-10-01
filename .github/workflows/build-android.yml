@@ -16,7 +16,7 @@ on:
       - '.github/workflows/build-android.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   apk:
@@ -58,12 +58,22 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Nommer le livrable
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk Le-Chemin.apk
+        run: |
+          mkdir -p livrables
+          cp android/app/build/outputs/apk/debug/app-debug.apk livrables/Le-Chemin.apk
 
       - name: Publier l’APK
         uses: actions/upload-artifact@v7
         with:
           name: Le-Chemin-APK
-          path: Le-Chemin.apk
+          path: livrables/Le-Chemin.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Ajouter l’APK à la branche de travail
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f livrables/Le-Chemin.apk
+          git commit -m 'Générer l’APK Le Chemin' || exit 0
+          git push origin "HEAD:${GITHUB_REF_NAME}"
