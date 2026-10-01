@@ -16,11 +16,12 @@
 - boutique avec débit à chaque échange ;
 - historique quotidien et synthèse détaillée par semaine ISO ;
 - double sauvegarde locale immédiate (IndexedDB + `localStorage`) avec état visible et réessai ;
-- export/import JSON manuel ;
+- export/import d’une sauvegarde ZIP contenant le JSON réimportable, une copie Excel et une notice ;
+- confirmation visible après la création de la sauvegarde ;
 - prénom propagé dans toute l’interface et la signature ;
 - ajout, modification et suppression de récompenses ;
 - icônes importées puis redimensionnées automatiquement ;
-- couleurs personnalisables et thème clair/sombre automatique ;
+- couleurs personnalisables et choix du thème clair, sombre ou lié au système ;
 - emballage Android Capacitor, entièrement hors ligne.
 
 ## Développement

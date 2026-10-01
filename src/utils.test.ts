@@ -72,6 +72,7 @@ describe('normalisation de sauvegarde', () => {
     expect(data.profile.name).toBe('Sokhan');
     expect(data.profile.accent).toBe(DEFAULT_DATA.profile.accent);
     expect(data.profile.highlight).toBe('#123456');
+    expect(data.profile.theme).toBe('system');
     expect(data.days['2026-10-01'].checks).toEqual({ 'morning-ready': true });
     expect(data.days['2026-10-01'].counts['obey-first']).toBeUndefined();
     expect(data.rewards).toHaveLength(1);

@@ -198,6 +198,9 @@ export function normalizeData(value: unknown): AppData {
       name: safeName(raw.profile?.name),
       accent: isHexColor(raw.profile?.accent) ? raw.profile.accent : DEFAULT_DATA.profile.accent,
       highlight: isHexColor(raw.profile?.highlight) ? raw.profile.highlight : DEFAULT_DATA.profile.highlight,
+      theme: raw.profile?.theme === 'light' || raw.profile?.theme === 'dark' || raw.profile?.theme === 'system'
+        ? raw.profile.theme
+        : DEFAULT_DATA.profile.theme,
     },
     days,
     rewards: normalizeRewards(raw.rewards),

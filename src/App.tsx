@@ -6,6 +6,7 @@ import {
   RELATIONSHIP_GROUPS,
   WEEKLY_ROWS,
 } from './data';
+import { downloadBackup, parseBackupFile } from './export';
 import { Icon } from './Icon';
 import { useAppStore } from './storage';
 import type { AppData, BehaviorDefinition, Reward } from './types';
@@ -550,6 +551,8 @@ function OptionsView({ data, onUpdate, onReplace, onBack }: OptionsProps) {
   const [mode, setMode] = useState<OptionMode>('profile');
   const [name, setName] = useState(data.profile.name);
   const [editor, setEditor] = useState<Reward | 'new' | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [backupMessage, setBackupMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
   const saveName = () => {
@@ -568,23 +571,40 @@ function OptionsView({ data, onUpdate, onReplace, onBack }: OptionsProps) {
     if (!window.confirm(`Supprimer « ${reward.title} » de la boutique ? L’historique des échanges reste conservé.`)) return;
     onUpdate((current) => ({ ...current, rewards: current.rewards.filter((item) => item.id !== reward.id) }));
   };
-  const exportBackup = () => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `le-chemin-sauvegarde-${localDateKey()}.json`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  const exportBackup = async () => {
+    setExporting(true);
+    setBackupMessage(null);
+    try {
+      const destination = await downloadBackup(data);
+      setBackupMessage({
+        tone: 'success',
+        text: destination === 'native-share'
+          ? 'Sauvegarde créée. Choisis maintenant où conserver le fichier ZIP.'
+          : 'Sauvegarde téléchargée : elle contient les données JSON et une copie du tableau Excel.',
+      });
+    } catch (reason) {
+      setBackupMessage({
+        tone: 'error',
+        text: reason instanceof Error ? `Échec de l’export : ${reason.message}` : 'La sauvegarde n’a pas pu être créée.',
+      });
+    } finally {
+      setExporting(false);
+    }
   };
   const importBackup = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    setBackupMessage(null);
     try {
-      const parsed = JSON.parse(await file.text());
+      const parsed = await parseBackupFile(file);
       if (!window.confirm('Remplacer les données actuelles par cette sauvegarde ?')) return;
       onReplace(normalizeData(parsed));
-    } catch {
-      window.alert('Ce fichier ne contient pas une sauvegarde Le Chemin valide.');
+      setBackupMessage({ tone: 'success', text: 'Sauvegarde importée avec succès.' });
+    } catch (reason) {
+      setBackupMessage({
+        tone: 'error',
+        text: reason instanceof Error ? reason.message : 'Ce fichier ne contient pas une sauvegarde Le Chemin valide.',
+      });
     } finally {
       event.target.value = '';
     }
@@ -593,7 +613,7 @@ function OptionsView({ data, onUpdate, onReplace, onBack }: OptionsProps) {
   const optionTabs: { id: OptionMode; label: string; icon: string }[] = [
     { id: 'profile', label: 'Profil', icon: 'user' },
     { id: 'rewards', label: 'Récompenses', icon: 'gift' },
-    { id: 'appearance', label: 'Couleurs', icon: 'palette' },
+    { id: 'appearance', label: 'Apparence', icon: 'palette' },
     { id: 'backup', label: 'Sauvegarde', icon: 'save' },
     { id: 'guide', label: 'Repères adultes', icon: 'help' },
   ];
@@ -638,7 +658,28 @@ function OptionsView({ data, onUpdate, onReplace, onBack }: OptionsProps) {
         {mode === 'appearance' && (
           <div className="settings-card card">
             <span className="settings-icon"><Icon name="palette" /></span>
-            <div className="settings-copy"><span className="eyebrow">Option avancée</span><h2>Couleurs de l’application</h2><p>Le thème clair ou sombre suit automatiquement le réglage du téléphone.</p></div>
+            <div className="settings-copy"><span className="eyebrow">Option avancée</span><h2>Apparence de l’application</h2><p>Choisis un thème fixe ou laisse l’application suivre automatiquement le téléphone.</p></div>
+            <fieldset className="theme-picker">
+              <legend>Thème</legend>
+              {([
+                { id: 'light', label: 'Clair', icon: 'sun' },
+                { id: 'dark', label: 'Sombre', icon: 'moon' },
+                { id: 'system', label: 'Lié au système', icon: 'monitor' },
+              ] as const).map((theme) => (
+                <button
+                  type="button"
+                  key={theme.id}
+                  className={data.profile.theme === theme.id ? 'active' : ''}
+                  aria-pressed={data.profile.theme === theme.id}
+                  onClick={() => onUpdate((current) => ({ ...current, profile: { ...current.profile, theme: theme.id } }))}
+                >
+                  <Icon name={theme.icon} size={19} />
+                  <span>{theme.label}</span>
+                  <i><Icon name="check" size={14} /></i>
+                </button>
+              ))}
+            </fieldset>
+            <h3 className="settings-subtitle">Palette de couleurs</h3>
             <div className="preset-grid">
               {colorPresets.map((preset) => <button type="button" key={preset.name} className={data.profile.accent === preset.accent && data.profile.highlight === preset.highlight ? 'active' : ''} onClick={() => onUpdate((current) => ({ ...current, profile: { ...current.profile, accent: preset.accent, highlight: preset.highlight } }))}><span style={{ '--preset-a': preset.accent, '--preset-b': preset.highlight } as CSSProperties} /><strong>{preset.name}</strong><Icon name="check" size={16} /></button>)}
             </div>
@@ -653,10 +694,19 @@ function OptionsView({ data, onUpdate, onReplace, onBack }: OptionsProps) {
         {mode === 'backup' && (
           <div className="settings-card card">
             <span className="settings-icon"><Icon name="save" /></span>
-            <div className="settings-copy"><span className="eyebrow">Données locales</span><h2>Deux copies sur cet appareil</h2><p>Chaque action est écrite immédiatement dans la base principale et dans une copie locale de secours. Une exportation manuelle permet un troisième exemplaire.</p></div>
-            <div className="backup-facts"><div><Icon name="saved" /><span><strong>Base principale</strong><small>IndexedDB · automatique</small></span></div><div><Icon name="shield" /><span><strong>Copie de secours</strong><small>Stockage local · automatique</small></span></div></div>
-            <div className="backup-actions"><button type="button" className="primary-button" onClick={exportBackup}><Icon name="download" size={17} /> Exporter mes données</button><button type="button" className="secondary-button" onClick={() => importRef.current?.click()}><Icon name="upload" size={17} /> Importer</button><input ref={importRef} hidden type="file" accept="application/json,.json" onChange={importBackup} /></div>
-            <p className="settings-note">Conserve le fichier exporté hors du téléphone avant un changement ou une réinitialisation de l’appareil.</p>
+            <div className="settings-copy"><span className="eyebrow">Données locales</span><h2>Deux copies sur cet appareil</h2><p>Chaque action est écrite immédiatement dans la base principale et dans une copie locale de secours. L’export manuel crée un fichier ZIP complet.</p></div>
+            <div className="backup-facts">
+              <div><Icon name="saved" /><span><strong>Base principale</strong><small>IndexedDB · automatique</small></span></div>
+              <div><Icon name="shield" /><span><strong>Copie de secours</strong><small>Stockage local · automatique</small></span></div>
+              <div><Icon name="download" /><span><strong>Export JSON + Excel</strong><small>ZIP réimportable · à conserver ailleurs</small></span></div>
+            </div>
+            <div className="backup-actions">
+              <button type="button" className="primary-button" onClick={exportBackup} disabled={exporting}><Icon name={exporting ? 'loading' : 'download'} className={exporting ? 'spin' : ''} size={17} /> {exporting ? 'Création…' : 'Exporter mes données'}</button>
+              <button type="button" className="secondary-button" onClick={() => importRef.current?.click()} disabled={exporting}><Icon name="upload" size={17} /> Importer</button>
+              <input ref={importRef} hidden type="file" accept="application/zip,.zip,application/json,.json" onChange={importBackup} />
+            </div>
+            {backupMessage && <p className={`backup-message backup-message--${backupMessage.tone}`} role="status"><Icon name={backupMessage.tone === 'success' ? 'saved' : 'offline'} size={17} />{backupMessage.text}</p>}
+            <p className="settings-note">Le ZIP contient le fichier JSON nécessaire à la restauration, une version Excel lisible du tableau et une notice. Conserve-le hors du téléphone avant un changement ou une réinitialisation de l’appareil.</p>
           </div>
         )}
 
@@ -722,6 +772,18 @@ function App() {
   };
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const theme = store.data.profile.theme;
+    if (theme === 'system') {
+      root.removeAttribute('data-theme');
+      root.style.colorScheme = 'light dark';
+    } else {
+      root.setAttribute('data-theme', theme);
+      root.style.colorScheme = theme;
+    }
+  }, [store.data.profile.theme]);
 
   const toggle = (id: string) => {
     const behavior = BEHAVIORS.find((item) => item.id === id);

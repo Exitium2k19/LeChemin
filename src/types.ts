@@ -22,10 +22,13 @@ export interface Redemption {
   createdAt: string;
 }
 
+export type ThemePreference = 'system' | 'light' | 'dark';
+
 export interface AppProfile {
   name: string;
   accent: string;
   highlight: string;
+  theme: ThemePreference;
 }
 
 export interface AppData {

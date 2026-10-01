@@ -173,6 +173,7 @@ export const DEFAULT_DATA: AppData = {
     name: 'Sokhan',
     accent: '#317b69',
     highlight: '#e39a52',
+    theme: 'system',
   },
   days: {},
   rewards: DEFAULT_REWARDS,
