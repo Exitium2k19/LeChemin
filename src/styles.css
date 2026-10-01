@@ -420,6 +420,7 @@ main { width: min(100%, 1180px); margin: 0 auto; }
 .settings-subtitle { margin: 0 0 9px; font-family: 'Mulish'; font-size: 10px; }
 .backup-message { margin: 13px 0 0; padding: 11px 12px; display: flex; align-items: flex-start; gap: 8px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 13px; color: var(--accent-deep); background: var(--accent-soft); font-size: 10px; font-weight: 700; line-height: 1.45; }
 .backup-message svg { flex: 0 0 auto; }
+.backup-message--info { color: var(--muted); border-color: var(--line); background: var(--surface-2); }
 .backup-message--error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 32%, var(--line)); background: color-mix(in srgb, var(--danger) 9%, var(--surface)); }
 
 :root[data-theme='light'] {

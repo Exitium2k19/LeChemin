@@ -552,7 +552,7 @@ function OptionsView({ data, onUpdate, onReplace, onBack }: OptionsProps) {
   const [name, setName] = useState(data.profile.name);
   const [editor, setEditor] = useState<Reward | 'new' | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [backupMessage, setBackupMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const [backupMessage, setBackupMessage] = useState<{ tone: 'success' | 'error' | 'info'; text: string } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
   const saveName = () => {
@@ -576,12 +576,16 @@ function OptionsView({ data, onUpdate, onReplace, onBack }: OptionsProps) {
     setBackupMessage(null);
     try {
       const destination = await downloadBackup(data);
-      setBackupMessage({
-        tone: 'success',
-        text: destination === 'native-share'
-          ? 'Sauvegarde créée. Choisis maintenant où conserver le fichier ZIP.'
-          : 'Sauvegarde téléchargée : elle contient les données JSON et une copie du tableau Excel.',
-      });
+      if (destination === 'native-canceled') {
+        setBackupMessage({ tone: 'info', text: 'Enregistrement annulé : aucun fichier n’a été créé.' });
+      } else {
+        setBackupMessage({
+          tone: 'success',
+          text: destination === 'native-save'
+            ? 'Sauvegarde enregistrée dans le dossier choisi.'
+            : 'Sauvegarde téléchargée : elle contient les données JSON et une copie du tableau Excel.',
+        });
+      }
     } catch (reason) {
       setBackupMessage({
         tone: 'error',
@@ -705,7 +709,7 @@ function OptionsView({ data, onUpdate, onReplace, onBack }: OptionsProps) {
               <button type="button" className="secondary-button" onClick={() => importRef.current?.click()} disabled={exporting}><Icon name="upload" size={17} /> Importer</button>
               <input ref={importRef} hidden type="file" accept="application/zip,.zip,application/json,.json" onChange={importBackup} />
             </div>
-            {backupMessage && <p className={`backup-message backup-message--${backupMessage.tone}`} role="status"><Icon name={backupMessage.tone === 'success' ? 'saved' : 'offline'} size={17} />{backupMessage.text}</p>}
+            {backupMessage && <p className={`backup-message backup-message--${backupMessage.tone}`} role="status"><Icon name={backupMessage.tone === 'success' ? 'saved' : backupMessage.tone === 'error' ? 'offline' : 'help'} size={17} />{backupMessage.text}</p>}
             <p className="settings-note">Le ZIP contient le fichier JSON nécessaire à la restauration, une version Excel lisible du tableau et une notice. Conserve-le hors du téléphone avant un changement ou une réinitialisation de l’appareil.</p>
           </div>
         )}

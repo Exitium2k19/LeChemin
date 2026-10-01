@@ -17,7 +17,8 @@
 - historique quotidien et synthèse détaillée par semaine ISO ;
 - double sauvegarde locale immédiate (IndexedDB + `localStorage`) avec état visible et réessai ;
 - export/import d’une sauvegarde ZIP contenant le JSON réimportable, une copie Excel et une notice ;
-- confirmation visible après la création de la sauvegarde ;
+- sur Android, ouverture du sélecteur de documents du système pour choisir le nom et le dossier du fichier ZIP (sans passer par Quick Share) ;
+- confirmation visible après l’enregistrement de la sauvegarde, avec message neutre en cas d’annulation ;
 - prénom propagé dans toute l’interface et la signature ;
 - ajout, modification et suppression de récompenses ;
 - icônes importées puis redimensionnées automatiquement ;

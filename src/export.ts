@@ -1,11 +1,20 @@
-import { Capacitor } from '@capacitor/core';
-import { Directory, Filesystem } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import ExcelJS from 'exceljs';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { BEHAVIORS } from './data';
 import type { AppData } from './types';
 import { balanceFor, behaviorValue, localDateKey, pointsForDay, totalEarned, totalSpent } from './utils';
+
+interface FileSaveResult {
+  canceled: boolean;
+  uri?: string;
+}
+
+interface FileSavePlugin {
+  saveFile(options: { filename: string; mimeType: string; data: string }): Promise<FileSaveResult>;
+}
+
+const NativeFileSave = registerPlugin<FileSavePlugin>('FileSave');
 
 const COLORS = {
   forest: 'FF317B69',
@@ -195,24 +204,18 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-export type ExportDestination = 'native-share' | 'browser-download';
+export type ExportDestination = 'native-save' | 'native-canceled' | 'browser-download';
 
-/** Enregistre via la feuille de partage Android, ou déclenche un téléchargement web standard. */
+/** Ouvre le sélecteur de fichier Android, ou déclenche un téléchargement web standard. */
 export async function downloadBackup(data: AppData): Promise<ExportDestination> {
   const archive = await buildBackupArchive(data);
   if (Capacitor.isNativePlatform()) {
-    const written = await Filesystem.writeFile({
-      path: archive.filename,
+    const result = await NativeFileSave.saveFile({
+      filename: archive.filename,
+      mimeType: 'application/zip',
       data: bytesToBase64(archive.bytes),
-      directory: Directory.Cache,
     });
-    await Share.share({
-      title: `Sauvegarde Le Chemin — ${data.profile.name}`,
-      text: 'Sauvegarde complète : données réimportables et tableau Excel.',
-      files: [written.uri],
-      dialogTitle: 'Enregistrer ou partager la sauvegarde',
-    });
-    return 'native-share';
+    return result.canceled ? 'native-canceled' : 'native-save';
   }
 
   const blob = new Blob([archive.bytes as BlobPart], { type: 'application/zip' });
