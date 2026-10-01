@@ -53,14 +53,62 @@ jobs:
           npm run generate:xlsx
           npm run cap:sync
 
-      - name: Construire l’APK installable
+      - name: Préparer la signature permanente
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!variable}" ]; then
+              echo "Le secret GitHub Actions $variable est absent." >&2
+              exit 1
+            fi
+          done
+          keystore_path="$RUNNER_TEMP/le-chemin-release.p12"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          chmod 600 "$keystore_path"
+          keytool -list -storetype PKCS12 -keystore "$keystore_path" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
+          echo "ANDROID_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_PASSWORD=$ANDROID_KEY_PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Construire l’APK installable signé
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Vérifier la signature de l’APK
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs \
+            android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Déposer la clé dans le brouillon privé
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_id=400888866
+          asset_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+            --jq '.assets[] | select(.name == "le-chemin-release.p12") | .id')"
+          if [ -n "$asset_id" ]; then
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id"
+          fi
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            --header 'Content-Type: application/x-pkcs12' \
+            --data-binary "@$ANDROID_KEYSTORE_PATH" \
+            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$release_id/assets?name=le-chemin-release.p12" \
+            >/dev/null
 
       - name: Nommer le livrable
         run: |
           mkdir -p livrables
-          cp android/app/build/outputs/apk/debug/app-debug.apk livrables/Le-Chemin.apk
+          cp android/app/build/outputs/apk/release/app-release.apk livrables/Le-Chemin.apk
 
       - name: Publier l’APK
         uses: actions/upload-artifact@v7

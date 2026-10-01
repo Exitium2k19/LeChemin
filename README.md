@@ -43,6 +43,12 @@ npm run cap:sync
 
 La construction de l’APK est automatisée par `.github/workflows/build-android.yml`.
 
+## Signature et mises à jour Android
+
+Les APK de production sont signés avec une clé PKCS12 permanente, fournie uniquement à GitHub Actions par quatre secrets chiffrés. Le `versionCode` augmente automatiquement avec chaque exécution de la CI. La clé privée ne doit jamais être ajoutée au dépôt ni publiée dans une release publique.
+
+Les anciennes constructions de test utilisaient des clés Android temporaires différentes. Android ne peut donc pas les remplacer directement par la première version signée durablement. Pour cette migration unique, exporter le ZIP depuis l’ancienne application, vérifier qu’il est conservé hors du téléphone, installer la version permanente après désinstallation, puis réimporter le ZIP. Les mises à jour suivantes préserveront normalement les données et s’installeront par-dessus l’application.
+
 ## Repères méthodologiques
 
 La mise en œuvre s’appuie sur des principes généraux d’entraînement parental comportemental et d’économie de jetons : cibles observables, conséquence positive rapide, louange descriptive, cohérence entre adultes, récompenses choisies avec l’enfant et révision régulière.
