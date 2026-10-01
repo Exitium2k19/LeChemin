@@ -80,10 +80,12 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Vérifier la signature de l’APK
+      - name: Vérifier la signature et l’identifiant de l’APK
         run: |
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs \
-            android/app/build/outputs/apk/release/app-release.apk
+          apk_path=android/app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk_path"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk_path" \
+            | grep -F "package: name='fr.dianejim.lechemin.app'"
 
       - name: Nommer le livrable
         run: |

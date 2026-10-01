@@ -13,7 +13,8 @@ android {
     namespace = "fr.dianejim.lechemin"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "fr.dianejim.lechemin"
+        // Identifiant permanent distinct des anciennes builds de test : installation côte à côte possible.
+        applicationId "fr.dianejim.lechemin.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode buildVersionCode

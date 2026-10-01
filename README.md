@@ -47,7 +47,7 @@ La construction de l’APK est automatisée par `.github/workflows/build-android
 
 Les APK de production sont signés avec une clé PKCS12 permanente, fournie uniquement à GitHub Actions par quatre secrets chiffrés. Le `versionCode` augmente automatiquement avec chaque exécution de la CI. La clé privée ne doit jamais être ajoutée au dépôt ni publiée dans une release publique.
 
-Les anciennes constructions de test utilisaient des clés Android temporaires différentes. Android ne peut donc pas les remplacer directement par la première version signée durablement. Pour cette migration unique, exporter le ZIP depuis l’ancienne application, vérifier qu’il est conservé hors du téléphone, installer la version permanente après désinstallation, puis réimporter le ZIP. Les mises à jour suivantes préserveront normalement les données et s’installeront par-dessus l’application.
+Les anciennes constructions de test utilisaient des clés Android temporaires différentes : Android refuse à juste titre de les remplacer par un APK signé avec une autre clé. La version permanente emploie donc l’identifiant distinct `fr.dianejim.lechemin.app`. Elle peut être installée **à côté de l’ancienne application**, sans la désinstaller. Pour la migration unique : exporter le ZIP depuis l’ancienne application, installer la version permanente, y réimporter le ZIP et vérifier les données ; supprimer seulement ensuite l’ancienne application. Toutes les versions permanentes suivantes garderont cet identifiant et cette signature, afin de s’installer normalement comme mises à jour sans perte de données.
 
 ## Repères méthodologiques
 

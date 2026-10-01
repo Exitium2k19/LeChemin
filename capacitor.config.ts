@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'fr.dianejim.lechemin',
+  appId: 'fr.dianejim.lechemin.app',
   appName: 'Le Chemin',
   webDir: 'dist',
   backgroundColor: '#f5f3eb',
