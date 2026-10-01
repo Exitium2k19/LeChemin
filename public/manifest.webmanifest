@@ -1,0 +1,11 @@
+{
+  "name": "Le Chemin",
+  "short_name": "Le Chemin",
+  "description": "Tableau de points familial, positif et motivant.",
+  "lang": "fr",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f5f3eb",
+  "theme_color": "#317b69",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

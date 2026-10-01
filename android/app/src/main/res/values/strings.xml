@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Le Chemin</string>
+    <string name="title_activity_main">Le Chemin</string>
+    <string name="package_name">fr.dianejim.lechemin</string>
+    <string name="custom_url_scheme">fr.dianejim.lechemin</string>
+</resources>

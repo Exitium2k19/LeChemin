@@ -1,0 +1,49 @@
+{
+  "name": "le-chemin",
+  "version": "1.0.0",
+  "description": "Tableau de points familial, positif et motivant",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && mkdir -p livrables && cp dist/index.html livrables/Le-Chemin.html",
+    "generate:xlsx": "node scripts/generate-workbook.mjs",
+    "cap:sync": "npm run build && npx cap sync android",
+    "android:apk": "npm run cap:sync && cd android && ./gradlew assembleDebug && cd .. && mkdir -p livrables && cp android/app/build/outputs/apk/debug/app-debug.apk livrables/Le-Chemin.apk",
+    "assets:android": "node scripts/generate-android-assets.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Exitium2k19/LeChemin.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/Exitium2k19/LeChemin/issues"
+  },
+  "homepage": "https://github.com/Exitium2k19/LeChemin#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@fontsource/baloo-2": "^5.3.0",
+    "@fontsource/mulish": "^5.3.0",
+    "lucide-react": "^1.49.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "exceljs": "^4.4.0",
+    "jsdom": "^30.1.1",
+    "sharp": "^0.35.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^5.0.3"
+  },
+  "private": true
+}
