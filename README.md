@@ -16,9 +16,10 @@
 - boutique avec débit à chaque échange ;
 - historique quotidien et synthèse détaillée par semaine ISO ;
 - double sauvegarde locale immédiate (IndexedDB + `localStorage`) avec état visible et réessai ;
-- export/import d’une sauvegarde ZIP contenant le JSON réimportable, une copie Excel et une notice ;
-- sur Android, ouverture du sélecteur de documents du système pour choisir le nom et le dossier du fichier ZIP (sans passer par Quick Share) ;
-- confirmation visible après l’enregistrement de la sauvegarde, avec message neutre en cas d’annulation ;
+- deux exports indépendants : configuration JSON réimportable et tableau Excel directement consultable ;
+- import des configurations `.json`, avec compatibilité pour les anciennes sauvegardes `.zip` ;
+- sur Android, ouverture du sélecteur de documents du système pour choisir séparément l’emplacement de chaque fichier (sans passer par Quick Share) ;
+- confirmation visible après chaque enregistrement, avec message neutre en cas d’annulation ;
 - prénom propagé dans toute l’interface et la signature ;
 - ajout, modification et suppression de récompenses ;
 - icônes importées puis redimensionnées automatiquement ;
@@ -47,7 +48,7 @@ La construction de l’APK est automatisée par `.github/workflows/build-android
 
 Les APK de production sont signés avec une clé PKCS12 permanente, fournie uniquement à GitHub Actions par quatre secrets chiffrés. Le `versionCode` augmente automatiquement avec chaque exécution de la CI. La clé privée ne doit jamais être ajoutée au dépôt ni publiée dans une release publique.
 
-Les anciennes constructions de test utilisaient des clés Android temporaires différentes : Android refuse à juste titre de les remplacer par un APK signé avec une autre clé. La version permanente emploie donc l’identifiant distinct `fr.dianejim.lechemin.app`. Elle peut être installée **à côté de l’ancienne application**, sans la désinstaller. Pour la migration unique : exporter le ZIP depuis l’ancienne application, installer la version permanente, y réimporter le ZIP et vérifier les données ; supprimer seulement ensuite l’ancienne application. Toutes les versions permanentes suivantes garderont cet identifiant et cette signature, afin de s’installer normalement comme mises à jour sans perte de données.
+Les anciennes constructions de test utilisaient des clés Android temporaires différentes : Android refuse à juste titre de les remplacer par un APK signé avec une autre clé. La version permanente emploie donc l’identifiant distinct `fr.dianejim.lechemin.app`. Elle peut être installée **à côté de l’ancienne application**, sans la désinstaller. Pour la migration unique : exporter la configuration depuis l’ancienne application (JSON ou ancienne sauvegarde ZIP), installer la version permanente, y réimporter ce fichier et vérifier les données ; supprimer seulement ensuite l’ancienne application. Toutes les versions permanentes suivantes garderont cet identifiant et cette signature, afin de s’installer normalement comme mises à jour sans perte de données.
 
 ## Repères méthodologiques
 

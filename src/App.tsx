@@ -6,7 +6,7 @@ import {
   RELATIONSHIP_GROUPS,
   WEEKLY_ROWS,
 } from './data';
-import { downloadBackup, parseBackupFile } from './export';
+import { downloadConfiguration, downloadExcel, parseBackupFile } from './export';
 import { Icon } from './Icon';
 import { useAppStore } from './storage';
 import type { AppData, BehaviorDefinition, Reward } from './types';
@@ -551,7 +551,7 @@ function OptionsView({ data, onUpdate, onReplace, onBack }: OptionsProps) {
   const [mode, setMode] = useState<OptionMode>('profile');
   const [name, setName] = useState(data.profile.name);
   const [editor, setEditor] = useState<Reward | 'new' | null>(null);
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<'configuration' | 'excel' | null>(null);
   const [backupMessage, setBackupMessage] = useState<{ tone: 'success' | 'error' | 'info'; text: string } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -571,28 +571,31 @@ function OptionsView({ data, onUpdate, onReplace, onBack }: OptionsProps) {
     if (!window.confirm(`Supprimer « ${reward.title} » de la boutique ? L’historique des échanges reste conservé.`)) return;
     onUpdate((current) => ({ ...current, rewards: current.rewards.filter((item) => item.id !== reward.id) }));
   };
-  const exportBackup = async () => {
-    setExporting(true);
+  const exportFile = async (kind: 'configuration' | 'excel') => {
+    setExporting(kind);
     setBackupMessage(null);
+    const label = kind === 'configuration' ? 'fichier de configuration' : 'tableau Excel';
     try {
-      const destination = await downloadBackup(data);
+      const destination = kind === 'configuration'
+        ? await downloadConfiguration(data)
+        : await downloadExcel(data);
       if (destination === 'native-canceled') {
-        setBackupMessage({ tone: 'info', text: 'Enregistrement annulé : aucun fichier n’a été créé.' });
+        setBackupMessage({ tone: 'info', text: `Enregistrement du ${label} annulé : aucun fichier n’a été créé.` });
       } else {
         setBackupMessage({
           tone: 'success',
           text: destination === 'native-save'
-            ? 'Sauvegarde enregistrée dans le dossier choisi.'
-            : 'Sauvegarde téléchargée : elle contient les données JSON et une copie du tableau Excel.',
+            ? `${kind === 'configuration' ? 'Configuration enregistrée' : 'Tableau Excel enregistré'} dans le dossier choisi.`
+            : `${kind === 'configuration' ? 'Configuration JSON téléchargée' : 'Tableau Excel téléchargé'} avec succès.`,
         });
       }
     } catch (reason) {
       setBackupMessage({
         tone: 'error',
-        text: reason instanceof Error ? `Échec de l’export : ${reason.message}` : 'La sauvegarde n’a pas pu être créée.',
+        text: reason instanceof Error ? `Échec de l’export du ${label} : ${reason.message}` : `Le ${label} n’a pas pu être créé.`,
       });
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   };
   const importBackup = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -698,19 +701,20 @@ function OptionsView({ data, onUpdate, onReplace, onBack }: OptionsProps) {
         {mode === 'backup' && (
           <div className="settings-card card">
             <span className="settings-icon"><Icon name="save" /></span>
-            <div className="settings-copy"><span className="eyebrow">Données locales</span><h2>Deux copies sur cet appareil</h2><p>Chaque action est écrite immédiatement dans la base principale et dans une copie locale de secours. L’export manuel crée un fichier ZIP complet.</p></div>
+            <div className="settings-copy"><span className="eyebrow">Données locales</span><h2>Deux copies sur cet appareil</h2><p>Chaque action est écrite immédiatement dans la base principale et dans une copie locale de secours. Les exports JSON et Excel sont enregistrés séparément.</p></div>
             <div className="backup-facts">
               <div><Icon name="saved" /><span><strong>Base principale</strong><small>IndexedDB · automatique</small></span></div>
               <div><Icon name="shield" /><span><strong>Copie de secours</strong><small>Stockage local · automatique</small></span></div>
-              <div><Icon name="download" /><span><strong>Export JSON + Excel</strong><small>ZIP réimportable · à conserver ailleurs</small></span></div>
+              <div><Icon name="download" /><span><strong>Exports indépendants</strong><small>JSON réimportable · Excel directement consultable</small></span></div>
             </div>
             <div className="backup-actions">
-              <button type="button" className="primary-button" onClick={exportBackup} disabled={exporting}><Icon name={exporting ? 'loading' : 'download'} className={exporting ? 'spin' : ''} size={17} /> {exporting ? 'Création…' : 'Exporter mes données'}</button>
-              <button type="button" className="secondary-button" onClick={() => importRef.current?.click()} disabled={exporting}><Icon name="upload" size={17} /> Importer</button>
+              <button type="button" className="primary-button" onClick={() => exportFile('configuration')} disabled={exporting !== null}><Icon name={exporting === 'configuration' ? 'loading' : 'download'} className={exporting === 'configuration' ? 'spin' : ''} size={17} /> {exporting === 'configuration' ? 'Création…' : 'Sauvegarder la configuration'}</button>
+              <button type="button" className="secondary-button" onClick={() => exportFile('excel')} disabled={exporting !== null}><Icon name={exporting === 'excel' ? 'loading' : 'download'} className={exporting === 'excel' ? 'spin' : ''} size={17} /> {exporting === 'excel' ? 'Création…' : 'Exporter le tableau Excel'}</button>
+              <button type="button" className="secondary-button" onClick={() => importRef.current?.click()} disabled={exporting !== null}><Icon name="upload" size={17} /> Importer une configuration</button>
               <input ref={importRef} hidden type="file" accept="application/zip,.zip,application/json,.json" onChange={importBackup} />
             </div>
             {backupMessage && <p className={`backup-message backup-message--${backupMessage.tone}`} role="status"><Icon name={backupMessage.tone === 'success' ? 'saved' : backupMessage.tone === 'error' ? 'offline' : 'help'} size={17} />{backupMessage.text}</p>}
-            <p className="settings-note">Le ZIP contient le fichier JSON nécessaire à la restauration, une version Excel lisible du tableau et une notice. Conserve-le hors du téléphone avant un changement ou une réinitialisation de l’appareil.</p>
+            <p className="settings-note">Le fichier JSON sert à restaurer les données et les réglages. Le fichier Excel s’ouvre directement pour consulter les résultats. Les anciennes sauvegardes ZIP restent importables.</p>
           </div>
         )}
 

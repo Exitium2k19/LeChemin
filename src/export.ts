@@ -1,6 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import ExcelJS from 'exceljs';
-import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import { strFromU8, strToU8, unzipSync } from 'fflate';
 import { BEHAVIORS } from './data';
 import type { AppData } from './types';
 import { balanceFor, behaviorValue, localDateKey, pointsForDay, totalEarned, totalSpent } from './utils';
@@ -98,7 +98,7 @@ export async function buildBackupWorkbook(data: AppData): Promise<Uint8Array> {
   ];
   summaryRows.forEach((row) => summary.addRow(row));
   styleRows(summary, 5, 12, 2);
-  summary.getCell('A14').value = 'Cette copie Excel accompagne le fichier JSON de restauration. Pour réimporter les données dans l’application, conserver le fichier ZIP complet.';
+  summary.getCell('A14').value = 'Cette copie Excel est destinée à la consultation. Pour restaurer l’application, conserver aussi le fichier JSON de configuration exporté séparément.';
   summary.mergeCells('A14:B14');
   summary.getCell('A14').alignment = { wrapText: true, vertical: 'middle' };
   summary.getCell('A14').font = { name: 'Aptos', size: 9, italic: true, color: { argb: COLORS.muted } };
@@ -170,28 +170,27 @@ export async function buildBackupWorkbook(data: AppData): Promise<Uint8Array> {
   return new Uint8Array(buffer);
 }
 
-export interface BackupArchive {
+export interface GeneratedExport {
   bytes: Uint8Array;
   filename: string;
+  mimeType: string;
 }
 
-/** Crée une sauvegarde unique contenant le JSON réimportable et une copie Excel. */
-export async function buildBackupArchive(data: AppData, dateKey = localDateKey()): Promise<BackupArchive> {
-  const excel = await buildBackupWorkbook(data);
-  const json = strToU8(JSON.stringify(data, null, 2));
-  const readme = strToU8(
-    `Sauvegarde Le Chemin de ${data.profile.name}\n\n` +
-    `- le-chemin-donnees.json : fichier à réimporter dans l'application ;\n` +
-    `- le-chemin-tableau.xlsx : copie Excel lisible des réglages et de l'historique.\n\n` +
-    `Créée le ${new Date().toLocaleString('fr-FR')}.\n`,
-  );
+/** Construit le fichier JSON réimportable contenant les données et les réglages. */
+export function buildConfigurationExport(data: AppData, dateKey = localDateKey()): GeneratedExport {
   return {
-    bytes: zipSync({
-      'le-chemin-donnees.json': json,
-      'le-chemin-tableau.xlsx': excel,
-      'LISEZ-MOI.txt': readme,
-    }, { level: 6 }),
-    filename: `le-chemin-sauvegarde-${dateKey}.zip`,
+    bytes: strToU8(JSON.stringify(data, null, 2)),
+    filename: `le-chemin-configuration-${dateKey}.json`,
+    mimeType: 'application/json',
+  };
+}
+
+/** Construit le fichier Excel directement consultable, sans archive ZIP. */
+export async function buildExcelExport(data: AppData, dateKey = localDateKey()): Promise<GeneratedExport> {
+  return {
+    bytes: await buildBackupWorkbook(data),
+    filename: `le-chemin-tableau-${dateKey}.xlsx`,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
 }
 
@@ -206,29 +205,36 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 export type ExportDestination = 'native-save' | 'native-canceled' | 'browser-download';
 
-/** Ouvre le sélecteur de fichier Android, ou déclenche un téléchargement web standard. */
-export async function downloadBackup(data: AppData): Promise<ExportDestination> {
-  const archive = await buildBackupArchive(data);
+/** Ouvre le sélecteur Android ou déclenche un téléchargement web pour un fichier généré. */
+async function saveGeneratedExport(file: GeneratedExport): Promise<ExportDestination> {
   if (Capacitor.isNativePlatform()) {
     const result = await NativeFileSave.saveFile({
-      filename: archive.filename,
-      mimeType: 'application/zip',
-      data: bytesToBase64(archive.bytes),
+      filename: file.filename,
+      mimeType: file.mimeType,
+      data: bytesToBase64(file.bytes),
     });
     return result.canceled ? 'native-canceled' : 'native-save';
   }
 
-  const blob = new Blob([archive.bytes as BlobPart], { type: 'application/zip' });
+  const blob = new Blob([file.bytes as BlobPart], { type: file.mimeType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = archive.filename;
+  link.download = file.filename;
   link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
   return 'browser-download';
+}
+
+export async function downloadConfiguration(data: AppData): Promise<ExportDestination> {
+  return saveGeneratedExport(buildConfigurationExport(data));
+}
+
+export async function downloadExcel(data: AppData): Promise<ExportDestination> {
+  return saveGeneratedExport(await buildExcelExport(data));
 }
 
 export function parseBackupBytes(bytes: Uint8Array, filename: string): unknown {

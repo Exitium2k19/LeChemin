@@ -1,8 +1,8 @@
 import ExcelJS from 'exceljs';
-import { unzipSync } from 'fflate';
+import { strToU8, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DATA } from './data';
-import { buildBackupArchive, parseBackupBytes } from './export';
+import { buildConfigurationExport, buildExcelExport, parseBackupBytes } from './export';
 import type { AppData } from './types';
 
 const sample: AppData = {
@@ -24,30 +24,26 @@ const sample: AppData = {
   updatedAt: '2026-10-01T12:00:00.000Z',
 };
 
-describe('sauvegarde exportée', () => {
-  it('regroupe un JSON réimportable, un Excel et une notice dans un seul ZIP', async () => {
-    const archive = await buildBackupArchive(sample, '2026-10-01');
-    expect(archive.filename).toBe('le-chemin-sauvegarde-2026-10-01.zip');
+describe('exports séparés', () => {
+  it('produit un fichier JSON réimportable avec un nom daté', () => {
+    const configuration = buildConfigurationExport(sample, '2026-10-01');
 
-    const files = unzipSync(archive.bytes);
-    expect(Object.keys(files).sort()).toEqual([
-      'LISEZ-MOI.txt',
-      'le-chemin-donnees.json',
-      'le-chemin-tableau.xlsx',
-    ]);
-    expect(files['le-chemin-tableau.xlsx'].slice(0, 2)).toEqual(new Uint8Array([0x50, 0x4b]));
-
-    const restored = parseBackupBytes(archive.bytes, archive.filename) as AppData;
+    expect(configuration.filename).toBe('le-chemin-configuration-2026-10-01.json');
+    expect(configuration.mimeType).toBe('application/json');
+    const restored = parseBackupBytes(configuration.bytes, configuration.filename) as AppData;
     expect(restored.profile.name).toBe('Sokhan');
     expect(restored.days['2026-10-01'].counts['obey-first']).toBe(2);
   });
 
-  it('produit un classeur Excel lisible avec les réglages et l’historique', async () => {
-    const archive = await buildBackupArchive(sample, '2026-10-01');
-    const excel = unzipSync(archive.bytes)['le-chemin-tableau.xlsx'];
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(excel.slice().buffer as ArrayBuffer);
+  it('produit directement un classeur Excel lisible avec les réglages et l’historique', async () => {
+    const excel = await buildExcelExport(sample, '2026-10-01');
 
+    expect(excel.filename).toBe('le-chemin-tableau-2026-10-01.xlsx');
+    expect(excel.mimeType).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    expect(excel.bytes.slice(0, 2)).toEqual(new Uint8Array([0x50, 0x4b]));
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(excel.bytes.slice().buffer as ArrayBuffer);
     expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual([
       'Synthèse',
       'Comportements',
@@ -56,5 +52,16 @@ describe('sauvegarde exportée', () => {
     ]);
     expect(workbook.getWorksheet('Synthèse')?.getCell('B5').value).toBe('Sokhan');
     expect(workbook.getWorksheet('Historique')?.rowCount).toBeGreaterThan(4);
+  });
+
+  it('continue à importer les anciennes sauvegardes ZIP', () => {
+    const legacyZip = zipSync({
+      'le-chemin-donnees.json': strToU8(JSON.stringify(sample)),
+      'LISEZ-MOI.txt': strToU8('Ancienne sauvegarde Le Chemin'),
+    });
+
+    const restored = parseBackupBytes(legacyZip, 'ancienne-sauvegarde.zip') as AppData;
+    expect(restored.profile.name).toBe('Sokhan');
+    expect(restored.redemptions).toHaveLength(1);
   });
 });
